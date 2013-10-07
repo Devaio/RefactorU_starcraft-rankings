@@ -1,0 +1,13 @@
+td {
+	border: thin solid gainsboro;
+	padding: 5px;
+}
+
+.tableHeaders {
+	font-family: fantasy;
+}
+
+#starTable {
+	width:80%;
+	margin-left: 10%
+}
