@@ -1,15 +1,6 @@
-$(function() {
-
-var starData = {
-	"cols": [
-		"username",
-		"fullname",
-		"region",
-		"race",
-		"wins",
-		"losses"
-	],
-	"data": [
+$(function(){
+	
+	var starData = [
 		[
 			"ridiculus",
 			"Acton Williamson",
@@ -19,7 +10,7 @@ var starData = {
 			234
 		],
 		[
-			"purus",
+			"purus,",
 			"Felix Bennett",
 			"Europe",
 			"Zerg",
@@ -810,37 +801,161 @@ var starData = {
 			18,
 			407
 		]
-	]
+	];
+
+/* API method to get paging information */
+$.fn.dataTableExt.oApi.fnPagingInfo = function ( oSettings )
+{
+    return {
+        "iStart":         oSettings._iDisplayStart,
+        "iEnd":           oSettings.fnDisplayEnd(),
+        "iLength":        oSettings._iDisplayLength,
+        "iTotal":         oSettings.fnRecordsTotal(),
+        "iFilteredTotal": oSettings.fnRecordsDisplay(),
+        "iPage":          oSettings._iDisplayLength === -1 ?
+            0 : Math.ceil( oSettings._iDisplayStart / oSettings._iDisplayLength ),
+        "iTotalPages":    oSettings._iDisplayLength === -1 ?
+            0 : Math.ceil( oSettings.fnRecordsDisplay() / oSettings._iDisplayLength )
+    };
+}
+ 
+/* Bootstrap style pagination control */
+$.extend( $.fn.dataTableExt.oPagination, {
+    "bootstrap": {
+        "fnInit": function( oSettings, nPaging, fnDraw ) {
+            var oLang = oSettings.oLanguage.oPaginate;
+            var fnClickHandler = function ( e ) {
+                e.preventDefault();
+                if ( oSettings.oApi._fnPageChange(oSettings, e.data.action) ) {
+                    fnDraw( oSettings );
+                }
+            };
+ 
+            $(nPaging).addClass('pagination').append(
+                '<ul>'+
+                    '<li class="prev disabled"><a href="#">&larr; '+oLang.sPrevious+'</a></li>'+
+                    '<li class="next disabled"><a href="#">'+oLang.sNext+' &rarr; </a></li>'+
+                '</ul>'
+            );
+            var els = $('a', nPaging);
+            $(els[0]).bind( 'click.DT', { action: "previous" }, fnClickHandler );
+            $(els[1]).bind( 'click.DT', { action: "next" }, fnClickHandler );
+        },
+ 
+        "fnUpdate": function ( oSettings, fnDraw ) {
+            var iListLength = 5;
+            var oPaging = oSettings.oInstance.fnPagingInfo();
+            var an = oSettings.aanFeatures.p;
+            var i, j, sClass, iStart, iEnd, iHalf=Math.floor(iListLength/2);
+ 
+            if ( oPaging.iTotalPages < iListLength) {
+                iStart = 1;
+                iEnd = oPaging.iTotalPages;
+            }
+            else if ( oPaging.iPage <= iHalf ) {
+                iStart = 1;
+                iEnd = iListLength;
+            } else if ( oPaging.iPage >= (oPaging.iTotalPages-iHalf) ) {
+                iStart = oPaging.iTotalPages - iListLength + 1;
+                iEnd = oPaging.iTotalPages;
+            } else {
+                iStart = oPaging.iPage - iHalf + 1;
+                iEnd = iStart + iListLength - 1;
+            }
+ 
+            for ( i=0, iLen=an.length ; i<iLen ; i++ ) {
+                // Remove the middle elements
+                $('li:gt(0)', an[i]).filter(':not(:last)').remove();
+ 
+                // Add the new list items and their event handlers
+                for ( j=iStart ; j<=iEnd ; j++ ) {
+                    sClass = (j==oPaging.iPage+1) ? 'class="active"' : '';
+                    $('<li '+sClass+'><a href="#">'+j+'</a></li>')
+                        .insertBefore( $('li:last', an[i])[0] )
+                        .bind('click', function (e) {
+                            e.preventDefault();
+                            oSettings._iDisplayStart = (parseInt($('a', this).text(),10)-1) * oPaging.iLength;
+                            fnDraw( oSettings );
+                        } );
+                }
+ 
+                // Add / remove disabled classes from the static elements
+                if ( oPaging.iPage === 0 ) {
+                    $('li:first', an[i]).addClass('disabled');
+                } else {
+                    $('li:first', an[i]).removeClass('disabled');
+                }
+ 
+                if ( oPaging.iPage === oPaging.iTotalPages-1 || oPaging.iTotalPages === 0 ) {
+                    $('li:last', an[i]).addClass('disabled');
+                } else {
+                    $('li:last', an[i]).removeClass('disabled');
+                }
+            }
+        }
+    }
+} );
+
+//End Bootstrap pagination
+
+$('.starTable').html('<table cellpadding="0" cellspacing="0" border="0" class="display starTable"></table>');
+var starRender = {
+	"aaData": starData,
+	"aoColumns": [
+	{"sTitle" : "Username",},
+	{"sTitle" : "Full name"},
+	{"sTitle" : "Region"},
+	{"sTitle" : "Race"},
+	{"sTitle" : "Wins"},
+	{"sTitle" : "Losses"}
+	],
+	"bLengthChange": false,
+	"sPaginationType": "bootstrap", 
+	"sClass":"btn-default",
+	"iDisplayLength" : 20,
+	'fnInfoCallback':function( oSettings, iStart, iEnd, iMax, iTotal, sPre ) {
+   return "Showing "+ iStart + " through "+  iEnd
+	}
 };
+$('.starTable').dataTable(starRender)
+///////end table
 
-//render row at a time
-var tableRender = function(counter) {
-	var rowData = starData.data[counter]
-	var tRow = $('<tr class="'+counter+'"></tr>')
-	var tCells = $('<td class="username">{0}</td><td class="fullname">{1}</td><td class="region">{2}</td><td class="race">{3}</td><td class="wins">{4}</td><td class="losses">{5}</td>'.supplant(rowData))
+$('th').addClass("tableHeaders")
+//Rendering Stats above Table
+var numPlayers = starData.length
+$('.totalPlayers').append(numPlayers)
 
-	$('tbody').append(tRow)
-	$('tbody').append(tCells)
+var gamesPlayed = function(data){
+	var output = 0
+	for(var i=0; i<data.length; i++){
+		output += data[i][4] + data[i][5]
+	}
+	$('.totalGames').append(output)
+}
 
-};
+var racePlayed = function(data){
+	var zergCount = 0
+	var protossCount = 0
+	var terranCount = 0
 
-//initial 20 rows
-for (var counter = 0; counter<20; counter++){
-	tableRender(counter)
-};
+	for(var i=0; i<data.length; i++){
+		if(data[i][3]==="Zerg"){
+			zergCount++
+		}
+		else if (data[i][3]==="Protoss"){
+			protossCount++
+		}
+		else{
+			terranCount++
+		}
+	}
+	$('.zergPop').append((zergCount/100)*100 + "%")
+	$('.protPop').append((protossCount/100)*100 + "%")
+	$('.terrPop').append((terranCount/100)*100 + "%")
+}
 
-$('.btn').on('click', function (){
-	$(this).addClass('active')
-	$(this).parent().siblings().children().removeClass('active')
-	$(this).parent().siblings().children().removeClass('active')
+gamesPlayed(starData)
+racePlayed(starData)
+// End Stats Above Table
+
 })
-
-
-
-
-
-
-
-
-
-});
